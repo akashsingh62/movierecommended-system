@@ -3,3 +3,4 @@ pandas
 scikit-learn
 python-dotenv
 requests
+gdown==5.1.0
