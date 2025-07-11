@@ -1,29 +1,33 @@
-import os
-import pickle
-import requests
+
+
+import os, pickle, requests
+
+def _get_confirm_token(r):
+    for k, v in r.cookies.items():
+        if k.startswith("download_warning"):
+            return v
+    return None
+
+def _save_response(r, dest):
+    CHUNK = 32768
+    with open(dest, "wb") as f:
+        for chunk in r.iter_content(CHUNK):
+            if chunk: f.write(chunk)
 
 def download_and_load_similarity():
-    url = "https://drive.google.com/file/d/10E2cedXTDUynyK0WqEUB86n2QP1Mvlf3/view?usp=drive_link"
-    filename = "similarity.pkl"
+    file_id = "1opOfUXKqHvnZLd2u3z5l_KmgRbmTVH0n"
+    url = "https://docs.google.com/uc?export=download"
+    dest = "similarity.pkl"
 
-    # Agar file pehle se nahi hai to download karo
-    if not os.path.exists(filename):
-        print("📦 Downloading similarity.pkl ...")
-        r = requests.get(url)
+    if not os.path.exists(dest):
+        print("⬇️  Downloading...")
+        session = requests.Session()
+        resp = session.get(url, params={"id": file_id}, stream=True)
+        token = _get_confirm_token(resp)
+        if token:  # large file confirm
+            resp = session.get(url, params={"id": file_id, "confirm": token}, stream=True)
+        _save_response(resp, dest)
+        print("✅  Done!")
 
-        # ⚠️ Check karo ki HTML page to nahi aa raha
-        content_type = r.headers.get('Content-Type', '')
-        if "text/html" in content_type:
-            with open("error_response.html", "w", encoding="utf-8") as f:
-                f.write(r.text)
-            raise Exception("❌ ERROR: Got HTML instead of .pkl file. Link ya permission sahi check karo!")
-
-        # ✅ Save correct file
-        with open(filename, "wb") as f:
-            f.write(r.content)
-        print("✅ Download complete!")
-
-    # 📦 Load karo similarity.pkl file
-    with open(filename, "rb") as f:
-        similarity = pickle.load(f)
-    return similarity
+    with open(dest, "rb") as f:
+        return pickle.load(f)
